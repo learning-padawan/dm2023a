@@ -1,5 +1,14 @@
 #Arbol elemental con libreria  rpart
 #Debe tener instaladas las librerias  data.table  ,  rpart  y  rpart.plot
+instalar_paquete = function(package_name){
+  if (!requireNamespace(package_name, quietly = TRUE)) {
+    # Install the package if it's not installed
+    install.packages(package_name)
+  }
+}
+instalar_paquete("data.table")
+instalar_paquete("rpart")
+instalar_paquete("rpart.plot")
 
 #cargo las librerias que necesito
 require("data.table")
@@ -7,7 +16,7 @@ require("rpart")
 require("rpart.plot")
 
 #Aqui se debe poner la carpeta de la materia de SU computadora local
-setwd("/Users/pablonavarro/Documents/ITBA/mcd/materias/2023.1.cuatrimestre/mcd_data_mining/mcd_dm_trabajos")  #Establezco el Working Directory
+setwd("/Users/pablonavarro/Documents/ITBA/mcd/materias/2023.1.cuatrimestre/mcd_data_mining/mcd_dm/mcd_dm_trabajos")  #Establezco el Working Directory
 
 #cargo el dataset
 dataset  <- fread("./datasets/dataset_pequeno.csv")
