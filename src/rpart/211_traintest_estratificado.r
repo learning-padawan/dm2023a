@@ -1,88 +1,102 @@
-#Para detener el script y mostrar el stack ante un error
-options(error = function() { 
-  traceback(20); 
-  options(error = NULL); 
-  stop("\nAbortando luego de un error fatal en el script.\n") 
-})
 
-
-rm( list=ls() )  #Borro todos los objetos
-gc()   #Garbage Collection
-
-require("data.table")
-require("rpart")
-
-#------------------------------------------------------------------------------
-#particionar agrega una columna llamada fold a un dataset que consiste en una particion estratificada segun agrupa
-# particionar( data=dataset, division=c(70,30), agrupa=clase_ternaria, seed=semilla)   crea una particion 70, 30 
-
-particionar  <- function( data,  division, agrupa="",  campo="fold", start=1, seed=NA )
-{
-  if( !is.na(seed) )   set.seed( seed )
-
-  bloque  <- unlist( mapply(  function(x,y) { rep( y, x )} ,   division,  seq( from=start, length.out=length(division) )  ) )  
-
-  data[ , (campo) :=  sample( rep( bloque, ceiling(.N/length(bloque))) )[1:.N],
-          by= agrupa ]
+main <- function() {
+  traintest_estratificado()
 }
-#------------------------------------------------------------------------------
-#------------------------------------------------------------------------------
 
-#Aqui se debe poner la carpeta de la computadora local
-setwd("/Users/pablonavarro/Documents/ITBA/mcd/materias/2023.1.cuatrimestre/mcd_data_mining/mcd_dm_trabajos")  #Establezco el Working Directory
-
-#cargo los datos
-dataset  <- fread("./datasets/dataset_pequeno.csv")
-
-#trabajo solo con los datos con clase, es decir 202107
-dataset  <- dataset[ clase_ternaria!= "" ]
-
-#particiono estratificadamente el dataset
-#Cambiar por la primer semilla de cada uno !
-particionar( dataset, division=c(7,3), agrupa="clase_ternaria", seed= 123401 )  #Cambiar por la primer semilla de cada uno !
+traintest_estratificado <- function() {
+  #Para detener el script y mostrar el stack ante un error
+  options(error = function() { 
+    traceback(20); 
+    options(error = NULL); 
+    stop("\nAbortando luego de un error fatal en el script.\n") 
+  })
 
 
-param_basicos  <- list( "cp"=         -1,  #complejidad minima
-                        "minsplit"=  400,  #minima cantidad de registros en un nodo para hacer el split
-                        "minbucket"=  10,  #minima cantidad de registros en una hoja
-                        "maxdepth"=    8 ) #profundidad máxima del arbol
+  rm( list=ls() )  #Borro todos los objetos
+  gc()   #Garbage Collection
 
-#genero el modelo
-modelo  <- rpart("clase_ternaria ~ .",     #quiero predecir clase_ternaria a partir del resto
-                 data= dataset[ fold==1],  #fold==1  es training,  el 70% de los datos
-                 xval= 0,
-                 control=  param_basicos )  #aqui van los parametros
+  require("data.table")
+  require("rpart")
+
+  #------------------------------------------------------------------------------
+  #particionar agrega una columna llamada fold a un dataset que consiste en una particion estratificada segun agrupa
+  # particionar( data=dataset, division=c(70,30), agrupa=clase_ternaria, seed=semilla)   crea una particion 70, 30 
+
+  particionar  <- function( data,  division, agrupa="",  campo="fold", start=1, seed=NA )
+  {
+    if( !is.na(seed) )   set.seed( seed )
+
+    bloque  <- unlist( mapply(  function(x,y) { rep( y, x )} ,   division,  seq( from=start, length.out=length(division) )  ) )  
+
+    # Explicame la siguiente linea:
+    # 1) rep( bloque, ceiling(.N/length(bloque)))  repite el vector bloque hasta que tenga al menos tantos elementos como el dataset
+    # 2) sample( rep( bloque, ceiling(.N/length(bloque))) )  lo mezcla
+    # 3) sample( rep( bloque, ceiling(.N/length(bloque))) )[1:.N]  toma los primeros .N elementos
+    # 4) data[ , (campo) :=  sample( rep( bloque, ceiling(.N/length(bloque))) )[1:.N], by= agrupa ]  agrega la columna campo al dataset data
+    #    y le asigna los valores de la mezcla de bloques
+    data[ , (campo) :=  sample( rep( bloque, ceiling(.N/length(bloque))) )[1:.N],
+            by= agrupa ]
+  }
+  #------------------------------------------------------------------------------
+  #------------------------------------------------------------------------------
+
+  #Aqui se debe poner la carpeta de la computadora local
+  setwd("/Users/pablonavarro/Documents/ITBA/mcd/materias/2023.1.cuatrimestre/mcd_data_mining/mcd_dm/mcd_dm_trabajos")  #Establezco el Working Directory
+
+  #cargo los datos
+  dataset  <- fread("./datasets/dataset_pequeno.csv")
+
+  #trabajo solo con los datos con clase, es decir 202107
+  # borra las filas donde la feature (o columna) clase_ternaria es ""
+  dataset  <- dataset[ clase_ternaria!= "" ]
+
+  #particiono estratificadamente el dataset
+  #Cambiar por la primer semilla de cada uno
+  particionar( dataset, division=c(7,3), agrupa="clase_ternaria", seed= 123457 )  #Cambiar por la primer semilla de cada uno !
 
 
-#aplico el modelo a los datos de testing
-prediccion  <- predict( modelo,   #el modelo que genere recien
-                        dataset[ fold==2],  #fold==2  es testing, el 30% de los datos
-                        type= "prob") #type= "prob"  es que devuelva la probabilidad
+  param_basicos  <- list( "cp"=         -1,  #complejidad minima
+                          "minsplit"=  400,  #minima cantidad de registros en un nodo para hacer el split
+                          "minbucket"=  10,  #minima cantidad de registros en una hoja
+                          "maxdepth"=    8 ) #profundidad máxima del arbol
 
-#prediccion es una matriz con TRES columnas, llamadas "BAJA+1", "BAJA+2"  y "CONTINUA"
-#cada columna es el vector de probabilidades 
-
-#agrego una columna que es la de las ganancias
-dataset[  , ganancia :=  ifelse( clase_ternaria=="BAJA+2", 117000, -3000 ) ]
-
-#para testing agrego la probabilidad
-dataset[ fold==2 , prob_baja2 := prediccion[, "BAJA+2"] ]
-
-#calculo la ganancia en testing  qu es fold==2
-ganancia_test  <- dataset[ fold==2 & prob_baja2 >  0.025, sum(ganancia) ]
-
-#escalo la ganancia como si fuera todo el dataset
-ganancia_test_normalizada  <-  ganancia_test / 0.3
-
-estimulos  <- dataset[ fold==2 & prob_baja2 > 0.025 , .N ]
-aciertos   <- dataset[ fold==2 & prob_baja2 > 0.025 & clase_ternaria =="BAJA+2", .N ]
+  #genero el modelo
+  modelo  <- rpart("clase_ternaria ~ .",     #quiero predecir clase_ternaria a partir del resto
+                  data= dataset[ fold==1],  #fold==1  es training,  el 70% de los datos
+                  xval= 0,
+                  control=  param_basicos )  #aqui van los parametros
 
 
-cat( "Testing total: ",  dataset[ fold==2, .N ], "\n" )
-cat( "Testing BAJA+2: ", dataset[ fold==2 & clase_ternaria =="BAJA+2", .N ], "\n" )
+  #aplico el modelo a los datos de testing
+  prediccion  <- predict( modelo,   #el modelo que genere recien
+                          dataset[ fold==2],  #fold==2  es testing, el 30% de los datos
+                          type= "prob") #type= "prob"  es que devuelva la probabilidad
 
-cat( "Estimulos: ", estimulos, "\n" )
-cat( "Aciertos (BAJA+2): ",  aciertos,  "\n" )
+  #prediccion es una matriz con TRES columnas, llamadas "BAJA+1", "BAJA+2"  y "CONTINUA"
+  #cada columna es el vector de probabilidades 
 
-cat( "Ganancia en testing (normalizada): ", ganancia_test_normalizada, "\n" )
+  #agrego una columna que es la de las ganancias
+  dataset[  , ganancia :=  ifelse( clase_ternaria=="BAJA+2", 117000, -3000 ) ]
 
+  #para testing agrego la probabilidad
+  dataset[ fold==2 , prob_baja2 := prediccion[, "BAJA+2"] ]
+
+  #calculo la ganancia en testing  qu es fold==2
+  ganancia_test  <- dataset[ fold==2 & prob_baja2 >  0.025, sum(ganancia) ]
+
+  #escalo la ganancia como si fuera todo el dataset
+  ganancia_test_normalizada  <-  ganancia_test / 0.3
+
+  estimulos  <- dataset[ fold==2 & prob_baja2 > 0.025 , .N ]
+  aciertos   <- dataset[ fold==2 & prob_baja2 > 0.025 & clase_ternaria =="BAJA+2", .N ]
+
+
+  cat( "Testing total: ",  dataset[ fold==2, .N ], "\n" )
+  cat( "Testing BAJA+2: ", dataset[ fold==2 & clase_ternaria =="BAJA+2", .N ], "\n" )
+
+  cat( "Estimulos: ", estimulos, "\n" )
+  cat( "Aciertos (BAJA+2): ",  aciertos,  "\n" )
+
+  cat( "Ganancia en testing (normalizada): ", ganancia_test_normalizada, "\n" )
+
+}

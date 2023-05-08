@@ -1,5 +1,4 @@
 # Arbol elemental con libreria  rpart
-# Debe tener instaladas las librerias  data.table  ,  rpart  y  rpart.plot
 instalar_paquete <- function(package_name) {
   if (!requireNamespace(package_name, quietly = TRUE)) {
     # Install the package if it's not installed
@@ -7,12 +6,12 @@ instalar_paquete <- function(package_name) {
   }
 }
 
-
 main <- function() {
-  primer_arbol(trial_number = '002')
+  primer_arbol(trial_number = '005')
 }
 
 primer_arbol <- function(trial_number) {
+  # Debe tener instaladas las librerias  data.table  ,  rpart  y  rpart.plot
   instalar_paquete("data.table")
   instalar_paquete("rpart")
   instalar_paquete("rpart.plot")
