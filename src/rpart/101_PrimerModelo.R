@@ -31,7 +31,7 @@ primer_arbol <- function(trial_number) {
   dapply <- dataset[foto_mes == 202109] # defino donde voy a aplicar el modelo
 
   # genero el modelo,  aqui se construye el arbol
-  # rpart llama al algo que contruye el arbol de decisiones
+  # rpart llama al algo que construye el arbol de decisiones
   # toma el data set, le pasa los parametros y genera un arbol de decisión
   modelo <- rpart(
     formula = "clase_ternaria ~ .", # quiero predecir clase_ternaria a partir de el resto de las variables
