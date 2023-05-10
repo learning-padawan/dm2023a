@@ -1,4 +1,3 @@
-# Arbol elemental con libreria  rpart
 instalar_paquete <- function(package_name) {
   if (!requireNamespace(package_name, quietly = TRUE)) {
     # Install the package if it's not installed
@@ -6,6 +5,7 @@ instalar_paquete <- function(package_name) {
   }
 }
 
+# Arbol elemental con libreria  rpart
 main <- function() {
   primer_arbol(trial_number = '005')
 }
