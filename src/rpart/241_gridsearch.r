@@ -121,8 +121,10 @@ gridsearch <- function() {
   cat(
     file = archivo_salida,
     sep = "",
+    "cp", "\t",
     "max_depth", "\t",
     "min_split", "\t",
+    "min_bucket", "\t",
     "ganancia_promedio", "\n"
   )
 
@@ -130,10 +132,10 @@ gridsearch <- function() {
   # itero por los loops anidados para cada hiperparametro
   # Aqui usted debera agregar loops !
 
-  for (vcp in c(-0.5, -0.1, -0.05, -0.01, -0.005, -0.001)) {
-    for (vmax_depth in c(4, 6, 8, 10, 12, 14)) {
+  for (vcp in c(-0.05, -0.1, -0.5, -0.6, -0.7, -1)) {
+    for (vmax_depth in c(6, 7, 8, 9, 10, 12)) {
       for (vmin_split in c(1000, 800, 600, 400, 200, 100, 50, 20, 10)) {
-        for (vmin_bucket in c(1000, 800, 600, 400, 200, 100, 50, 20, 10, vmin_split / 4, vmin_split / 3)) { # nolint: line_length_linter.
+        for (vmin_bucket in c(1000, 800, 600, 400, 200, 100, 50, 20, 10, 2, vmin_split / 4)) { # nolint: line_length_linter.
           # notar como se agrega
           param_basicos <- list(
             "cp" = vcp, # complejidad minima
@@ -149,8 +151,10 @@ gridsearch <- function() {
             file = archivo_salida,
             append = TRUE,
             sep = "",
+            vcp, "\t",
             vmax_depth, "\t",
             vmin_split, "\t",
+            vmin_bucket, "\t",
             ganancia_promedio, "\n"
           )
         }
