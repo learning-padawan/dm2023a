@@ -7,7 +7,7 @@ instalar_paquete <- function(package_name) {
 
 # Arbol elemental con libreria  rpart
 main <- function() {
-  primer_arbol(trial_number = '005')
+  primer_arbol(trial_number = '_100voGridSearch')
 }
 
 primer_arbol <- function(trial_number) {
@@ -37,10 +37,10 @@ primer_arbol <- function(trial_number) {
     formula = "clase_ternaria ~ .", # quiero predecir clase_ternaria a partir de el resto de las variables
     data = dtrain, # los datos donde voy a entrenar
     xval = 0,
-    cp = -1, # esto significa no limitar la complejidad de los splits
-    minsplit = 900, # minima cantidad de registros para que se haga el split
-    minbucket = 440, # tamaño minimo de una hoja que uno acepta
-    maxdepth = 5
+    cp = -0.6, # esto significa no limitar la complejidad de los splits
+    minsplit = 100, # minima cantidad de registros para que se haga el split
+    minbucket = 10, # tamaño minimo de una hoja que uno acepta
+    maxdepth = 8
   ) # profundidad maxima del arbol
 
 
