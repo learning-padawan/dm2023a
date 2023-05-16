@@ -125,6 +125,17 @@ setorder( tb_entrega, -prob )
   #suba TODOS los archivos a Kaggle
   #espera a la siguiente clase sincronica en donde el tema sera explicado
 
+# Que hace con seq( 8000, 12000, by=500 ) ?
+#   genera un vector de numeros enteros
+#   que van desde 8000 hasta 12000
+#   de a 500 en 500
+#   es decir 8000, 8500, 9000, 9500, 10000, 10500, 11000, 11500, 12000
+#   estos numeros son la cantidad de envios que se van a hacer a Kaggle
+#   cada archivo tiene un numero de envios distinto
+#   el primer archivo tiene 8000 envios
+#   el segundo archivo tiene 8500 envios
+#   el tercer archivo tiene 9000 envios
+#   y asi sucesivamente
 cortes <- seq( 8000, 12000, by=500 )
 for( envios  in  cortes )
 {
