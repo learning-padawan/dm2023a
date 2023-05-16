@@ -54,8 +54,12 @@ PARAM$hyperparametertuning$hs  <- makeParamSet(
          makeNumericParam("feature_fraction", lower=    0.2 , upper=    1.0),
          makeIntegerParam("min_data_in_leaf", lower=    1L  , upper=  8000L),
          makeIntegerParam("num_leaves",       lower=   16L  , upper=  1024L),
-         makeIntegerParam("envios",           lower= 5000L  , upper= 15000L)
+         makeIntegerParam("envios",           lower= 5000L  , upper= 15000L),
+         makeIntegerParam("min_gain_to_split",lower =  0, upper = 15),
+         makeIntegerParam("lambda_l1",lower =  0, upper = 100),
+         makeIntegerParam("lambda_l2",lower =  0, upper = 100)
         )
+
 # FIN Parametros del script
 
 #------------------------------------------------------------------------------
@@ -127,9 +131,6 @@ EstimarGanancia_lightgbm  <- function( x )
                           feature_pre_filter= FALSE,
                           verbosity= -100,
                           max_depth=  -1,         # -1 significa no limitar,  por ahora lo dejo fijo
-                          min_gain_to_split= 0.0, #por ahora, lo dejo fijo
-                          lambda_l1= 0.0,         #por ahora, lo dejo fijo
-                          lambda_l2= 0.0,         #por ahora, lo dejo fijo
                           max_bin= 31,            #por ahora, lo dejo fijo
                           num_iterations= 9999,   #un numero muy grande, lo limita early_stopping_rounds
                           force_row_wise= TRUE,   #para que los alumnos no se atemoricen con tantos warning
