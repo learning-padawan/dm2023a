@@ -65,6 +65,11 @@ dapply[ , prob_acumulada := 0 ]
 
 #Establezco cuales son los campos que puedo usar para la prediccion
 #el copy() es por la Lazy Evaluation
+
+#que hace el setdiff?
+#setdiff(  colnames(dtrain) ,  c("clase_ternaria") )
+#devuelve los nombres de las columnas de dtrain que no estan en el vector c("clase_ternaria")
+#es decir, me devuelve los nombres de las columnas que no son la clase ternaria, porque es la que quiero predecir
 campos_buenos  <- copy( setdiff(  colnames(dtrain) ,  c("clase_ternaria") ) )
 
 

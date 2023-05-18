@@ -165,13 +165,25 @@ drift_deflacion  <- function( campos_monetarios )
 }
 
 #------------------------------------------------------------------------------
-
+# Que hace esta funcion?
+# 1) toma un campo numerico
+# 2) lo rankea
 drift_rank_simple  <- function( campos_drift )
 {
   for( campo in campos_drift )
   {
+    # cat escribe en la consola
     cat( campo, " " )
+
+    # .N es el numero de filas del dataset
+    # frank es la funcion que rankea
+    # ties.method="random" es para que los empates se rompan al azar
+    # el -1 es para que el ranking vaya de 0 a 1
+    # paste0(campo,"_rank") := es para crear un nuevo campo
+    # by= foto_mes es para que el ranking se haga por foto_mes
     dataset[ , paste0(campo,"_rank") :=  (frank( get(campo), ties.method="random") - 1) / ( .N -1 ), by= foto_mes]
+
+    # borro el campo original
     dataset[ , (campo) := NULL ]
   }
 }

@@ -162,6 +162,12 @@ TendenciaYmuchomas  <- function( dataset, cols, ventana=6, tendencia=TRUE, minim
   #de esta forma se acelera el procesamiento ya que lo hago una sola vez
   vector_ids   <- dataset$numero_de_cliente
 
+  # que hace el vector_desde?
+  # es un vector que indica desde que fila se debe comenzar a calcular la tendencia
+  # por ejemplo si la ventana es 6, y el vector_desde es 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+  # significa que para la fila 1 se calcula la tendencia desde la fila 1 hasta la fila 6
+  # para la fila 2 se calcula la tendencia desde la fila 2 hasta la fila 7
+  # para la fila 3 se calcula la tendencia desde la fila 3 hasta la fila 8
   vector_desde  <- seq( -ventana_regresion+2,  nrow(dataset)-ventana_regresion+1 )
   vector_desde[ 1:ventana_regresion ]  <-  1
 
@@ -170,6 +176,16 @@ TendenciaYmuchomas  <- function( dataset, cols, ventana=6, tendencia=TRUE, minim
 
   for(  campo  in   cols )
   {
+    #que hace fhistC?
+    #calcula la tendencia, el minimo, el maximo y el promedio de la variable campo
+    #para cada fila de la tabla
+    #el resultado es un vector de 5*nrow(dataset) elementos
+    #los primeros nrow(dataset) elementos son la tendencia
+    #los segundos nrow(dataset) elementos son el minimo
+    #los terceros nrow(dataset) elementos son el maximo
+    #los cuartos nrow(dataset) elementos son el promedio
+    #los quintos nrow(dataset) elementos son el ratioavg
+    #los sextos nrow(dataset) elementos son el ratiomax
     nueva_col     <- fhistC( dataset[ , get(campo) ], vector_desde )
 
     if(tendencia)  dataset[ , paste0( campo, "_tend", ventana) := nueva_col[ (0*last +1):(1*last) ]  ]
@@ -192,7 +208,14 @@ AgregaVarRandomForest  <- function( num.trees, max.depth, min.node.size, mtry, s
   campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria" ) )
 
   dataset_rf  <- copy( dataset[ , campos_buenos, with=FALSE] )
+
   azar  <- runif( nrow(dataset_rf) )
+
+  #entrenamiento := as.integer( foto_mes>= 202101 &  foto_mes<= 202103 & ( clase01==1 | azar < 0.10 )) ?
+  #Es para que el RF aprenda de los clientes que se fueron y de los que se quedaron
+  #pero que aprenda mas de los que se fueron
+  #Si no hago esto, el RF aprende solo de los que se quedaron y no aprende de los que se fueron
+  #y por lo tanto no aprende a predecir bien los que se van
   dataset_rf[ , entrenamiento := as.integer( foto_mes>= 202101 &  foto_mes<= 202103 & ( clase01==1 | azar < 0.10 )) ]
 
   #imputo los nulos, ya que ranger no acepta nulos
@@ -201,8 +224,14 @@ AgregaVarRandomForest  <- function( num.trees, max.depth, min.node.size, mtry, s
 
   campos_buenos  <- setdiff( colnames(dataset_rf), c("clase_ternaria","entrenamiento" ) )
   set.seed( semilla )
+
+  # ranger es el Random Forest de R
   modelo  <- ranger( formula= "clase01 ~ .",
-                     data=  dataset_rf[ entrenamiento==1L, campos_buenos, with=FALSE  ] ,
+                    # solo usa los que estan en entrenamiento
+                    # 1L es un entero largo de 64 bits (L)
+                    # entrenamiento==1L es un vector de TRUE y FALSE
+                    #  Al establecer with=FALSE, se indica que el subconjunto se realice de manera estricta, es decir, utilizando solo las columnas específicas proporcionadas en campos_buenos.  
+                     data=  dataset_rf[ entrenamiento==1L, campos_buenos, with=FALSE  ] , 
                      classification= TRUE,
                      probability=   FALSE,
                      num.trees=     num.trees,
@@ -370,6 +399,14 @@ setorder( dataset, numero_de_cliente, foto_mes )
 if( PARAM$lag1 )
 {
   #creo los campos lags de orden 1
+  # Que hace en la siguiente linea el shift(.SD, 1, NA, "lag") ?
+  # 1) crea las columnas cols_lagueables_lag1
+  # 2) en cada fila, copia el valor de la fila anterior de la misma columna
+  # 3) en la primera fila de cada cliente, pone NA
+  # 4) en la segunda fila de cada cliente, copia el valor de la fila anterior de la misma columna
+  # 5) en la primera fila de cada cliente, pone NA
+  # 6) en la tercera fila de cada cliente, copia el valor de la fila anterior de la misma columna
+  # y así sucesivamente
   dataset[ , paste0( cols_lagueables, "_lag1") := shift(.SD, 1, NA, "lag"),
              by= numero_de_cliente,
              .SDcols= cols_lagueables ]
