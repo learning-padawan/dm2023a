@@ -22,10 +22,10 @@ require("DiceKriging")
 require("mlrMBO")
 
 #------------------------------------------------------------------------------
-options(error = function() { 
-  traceback(20); 
-  options(error = NULL); 
-  stop("exiting after script error") 
+options(error = function() {
+  traceback(20);
+  options(error = NULL);
+  stop("exiting after script error")
 })
 #------------------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ PARAM$lgb_semilla  <- 102191   #cambiar por su propia semilla
 
 
 #Hiperparametros FIJOS de  lightgbm
-PARAM$lgb_basicos <- list( 
+PARAM$lgb_basicos <- list(
    boosting= "gbdt",               #puede ir  dart  , ni pruebe random_forest
    objective= "binary",
    metric= "custom",
@@ -61,7 +61,7 @@ PARAM$lgb_basicos <- list(
    bagging_fraction= 1.0,          # 0.0 < bagging_fraction <= 1.0
    pos_bagging_fraction= 1.0,      # 0.0 < pos_bagging_fraction <= 1.0
    neg_bagging_fraction= 1.0,      # 0.0 < neg_bagging_fraction <= 1.0
-   is_unbalance=  FALSE,           # 
+   is_unbalance=  FALSE,           #
    scale_pos_weight= 1.0,          # scale_pos_weight > 0.0
 
    drop_rate=  0.1,                # 0.0 < neg_bagging_fraction <= 1.0
@@ -75,7 +75,7 @@ PARAM$lgb_basicos <- list(
 
 
 #Aqui se cargan los hiperparametros que se optimizan en la Bayesian Optimization
-PARAM$bo_lgb <- makeParamSet( 
+PARAM$bo_lgb <- makeParamSet(
          makeNumericParam("learning_rate",    lower=    0.02, upper=     0.3),
          makeNumericParam("feature_fraction", lower=    0.01, upper=     1.0),
          makeIntegerParam("num_leaves",       lower=    8L,   upper=  1024L),
@@ -86,8 +86,19 @@ PARAM$bo_lgb <- makeParamSet(
 #si usted es ambicioso, y tiene paciencia, podria subir este valor a 100
 PARAM$bo_iteraciones  <- 50  #iteraciones de la Optimizacion Bayesiana
 
+PARAM$home  <- "~/buckets/b1/"
+
 # FIN Parametros del script
 
+OUTPUT  <- list()
+
+
+#------------------------------------------------------------------------------
+
+GrabarOutput  <- function()
+{
+  write_yaml( OUTPUT, file= "output.yml" )   # grabo OUTPUT
+}
 #------------------------------------------------------------------------------
 #graba a un archivo los componentes de lista
 #para el primer registro, escribe antes los titulos
@@ -99,7 +110,7 @@ exp_log  <- function( reg, arch=NA, folder="./exp/", ext=".txt", verbose=TRUE )
 
   if( !file.exists( archivo ) )  #Escribo los titulos
   {
-    linea  <- paste0( "fecha\t", 
+    linea  <- paste0( "fecha\t",
                       paste( list.names(reg), collapse="\t" ), "\n" )
 
     cat( linea, file=archivo )
@@ -114,18 +125,18 @@ exp_log  <- function( reg, arch=NA, folder="./exp/", ext=".txt", verbose=TRUE )
 }
 
 #------------------------------------------------------------------------------
-GLOBAL_arbol  <- 0
+GLOBAL_arbol  <- 0L
 GLOBAL_gan_max  <- -Inf
 vcant_optima  <- c()
 
-fganancia_lgbm_meseta  <- function( probs, datos) 
+fganancia_lgbm_meseta  <- function( probs, datos)
 {
   vlabels  <- get_field(datos, "label")
   vpesos   <- get_field(datos, "weight")
 
 
   GLOBAL_arbol  <<- GLOBAL_arbol + 1
-  tbl  <- as.data.table( list( "prob"= probs, 
+  tbl  <- as.data.table( list( "prob"= probs,
                                "gan" = ifelse( vlabels==1 & vpesos>1 , 117000, -3000 ) ) )
 
   setorder( tbl, -prob )
@@ -136,19 +147,19 @@ fganancia_lgbm_meseta  <- function( probs, datos)
   gan  <- tbl[ , max(gan_suavizada, na.rm=TRUE) ]
 
 
-  pos  <- which.max( tbl[ , gan_suavizada ] ) 
+  pos  <- which.max( tbl[ , gan_suavizada ] )
   vcant_optima  <<- c( vcant_optima, pos )
 
   if( GLOBAL_arbol %% 10 == 0 )
   {
-    if( gan > GLOBAL_gan_max ) GLOBAL_gan_max  <<- gan 
+    if( gan > GLOBAL_gan_max ) GLOBAL_gan_max  <<- gan
 
     cat( "\r" )
     cat( "Validate ", GLOBAL_iteracion, " " , " ", GLOBAL_arbol, "  ", gan, "   ", GLOBAL_gan_max, "   " )
   }
 
 
-  return( list( "name"= "ganancia", 
+  return( list( "name"= "ganancia",
                 "value"=  gan,
                 "higher_better"= TRUE ) )
 }
@@ -157,17 +168,19 @@ fganancia_lgbm_meseta  <- function( probs, datos)
 EstimarGanancia_lightgbm  <- function( x )
 {
   gc()
-  GLOBAL_iteracion  <<- GLOBAL_iteracion + 1
+  GLOBAL_iteracion  <<- GLOBAL_iteracion + 1L
+  OUTPUT$BO$iteracion_actual  <<- GLOBAL_iteracion
+  GrabarOutput()
 
   # hago la union de los parametros basicos y los moviles que vienen en x
   param_completo  <- c( PARAM$lgb_basicos,  x )
 
   param_completo$early_stopping_rounds  <- as.integer(200 + 4/param_completo$learning_rate )
 
-  GLOBAL_arbol  <<- 0
+  GLOBAL_arbol  <<- 0L
   GLOBAL_gan_max  <<- -Inf
   vcant_optima  <<- c()
-  set.seed( PARAM$lgb_semilla )
+  set.seed( PARAM$lgb_semilla, kind= "L'Ecuyer-CMRG")
   modelo_train  <- lgb.train( data= dtrain,
                               valids= list( valid= dvalidate ),
                               eval=   fganancia_lgbm_meseta,
@@ -179,7 +192,7 @@ EstimarGanancia_lightgbm  <- function( x )
   cant_corte  <- vcant_optima[ modelo_train$best_iter ]
 
   #aplico el modelo a testing y calculo la ganancia
-  prediccion  <- predict( modelo_train, 
+  prediccion  <- predict( modelo_train,
                           data.matrix( dataset_test[ , campos_buenos, with=FALSE]) )
 
   tbl  <- copy( dataset_test[ , list("gan" = ifelse(clase_ternaria=="BAJA+2", 117000, -3000 )) ] )
@@ -192,7 +205,7 @@ EstimarGanancia_lightgbm  <- function( x )
 
   ganancia_test  <- tbl[ , max(gan_suavizada, na.rm=TRUE) ]
 
-  cantidad_test_normalizada  <- which.max( tbl[ , gan_suavizada ] ) 
+  cantidad_test_normalizada  <- which.max( tbl[ , gan_suavizada ] )
 
   rm( tbl )
   gc()
@@ -207,10 +220,14 @@ EstimarGanancia_lightgbm  <- function( x )
     tb_importancia    <- as.data.table( lgb.importance( modelo_train ) )
 
     fwrite( tb_importancia,
-            file= paste0( "impo_", GLOBAL_iteracion, ".txt" ),
+            file= paste0( "impo_", sprintf( "%03d", GLOBAL_iteracion), ".txt" ),
             sep= "\t" )
 
     rm( tb_importancia )
+    OUTPUT$BO$mejor$iteracion  <<- GLOBAL_iteracion
+    OUTPUT$BO$mejor$ganancia  <<- GLOBAL_ganancia
+    OUTPUT$BO$mejor$arboles  <<- modelo_train$best_iter
+    GrabarOutput()
   }
 
 
@@ -226,6 +243,7 @@ EstimarGanancia_lightgbm  <- function( x )
 
   exp_log( xx,  arch= "BO_log.txt" )
 
+  set.seed( PARAM$lgb_semilla, kind= "L'Ecuyer-CMRG")
   return( ganancia_test_normalizada )
 }
 #------------------------------------------------------------------------------
@@ -234,14 +252,14 @@ EstimarGanancia_lightgbm  <- function( x )
 
 vcant_optima   <- c()
 
-fganancia_lgbm_mesetaCV  <- function( probs, datos) 
+fganancia_lgbm_mesetaCV  <- function( probs, datos)
 {
   vlabels  <- get_field(datos, "label")
   vpesos   <- get_field(datos, "weight")
 
-  GLOBAL_arbol  <<- GLOBAL_arbol + 1
+  GLOBAL_arbol  <<- GLOBAL_arbol + 1L
 
-  tbl  <- as.data.table( list( "prob"= probs, 
+  tbl  <- as.data.table( list( "prob"= probs,
                                "gan" = ifelse( vlabels==1 & vpesos > 1,
                                               117000,
                                                -3000 ) ) )
@@ -253,13 +271,13 @@ fganancia_lgbm_mesetaCV  <- function( probs, datos)
 
   gan  <-  tbl[ , max(gan_suavizada, na.rm=TRUE) ]
 
-  pos  <- which.max(  tbl[ , gan_suavizada ] ) 
+  pos  <- which.max(  tbl[ , gan_suavizada ] )
 
   vcant_optima   <<- c( vcant_optima, pos )
 
   if( GLOBAL_arbol %% (10*PARAM$lgb_crossvalidation_folds) == 0 )
   {
-    if( gan > GLOBAL_gan_max ) GLOBAL_gan_max  <<- gan 
+    if( gan > GLOBAL_gan_max ) GLOBAL_gan_max  <<- gan
 
     cat( "\r" )
     cat( "Cross Validate ", GLOBAL_iteracion, " " , " ",
@@ -268,7 +286,7 @@ fganancia_lgbm_mesetaCV  <- function( probs, datos)
          GLOBAL_gan_max * PARAM$lgb_crossvalidation_folds, "   " )
   }
 
-  return( list( "name"= "ganancia", 
+  return( list( "name"= "ganancia",
                 "value"=  gan,
                 "higher_better"= TRUE ) )
 }
@@ -277,16 +295,18 @@ fganancia_lgbm_mesetaCV  <- function( probs, datos)
 EstimarGanancia_lightgbmCV  <- function( x )
 {
   gc()
-  GLOBAL_iteracion  <<- GLOBAL_iteracion + 1
+  GLOBAL_iteracion  <<- GLOBAL_iteracion + 1L
+  OUTPUT$BO$iteracion_actual  <<- GLOBAL_iteracion
+  GrabarOutput()
 
   param_completo  <- c(PARAM$lgb_basicos,  x )
 
   param_completo$early_stopping_rounds  <- as.integer(200 + 4/param_completo$learning_rate )
 
   vcant_optima   <<- c()
-  GLOBAL_arbol  <<- 0
+  GLOBAL_arbol  <<- 0L
   GLOBAL_gan_max  <<- -Inf
-  set.seed( PARAM$lgb_semilla )
+  set.seed( PARAM$lgb_semilla, kind= "L'Ecuyer-CMRG")
   modelocv  <- lgb.cv( data= dtrain,
                        eval=   fganancia_lgbm_mesetaCV,
                        param=  param_completo,
@@ -316,7 +336,7 @@ EstimarGanancia_lightgbmCV  <- function( x )
                           verbose= -100 )
 
     #aplico el modelo a testing y calculo la ganancia
-    prediccion  <- predict( modelo, 
+    prediccion  <- predict( modelo,
                             data.matrix( dataset_test[ , campos_buenos, with=FALSE]) )
 
     tbl  <- copy( dataset_test[ , list("gan" = ifelse(clase_ternaria=="BAJA+2", 117000, -3000 )) ] )
@@ -329,7 +349,7 @@ EstimarGanancia_lightgbmCV  <- function( x )
 
     #Dato que hay testing, estos valores son ahora los oficiales
     ganancia_normalizada  <- tbl[ , max(gan_suavizada, na.rm=TRUE) ]
-    cant_corte  <- which.max( tbl[ , gan_suavizada ] ) 
+    cant_corte  <- which.max( tbl[ , gan_suavizada ] )
 
     rm( tbl )
     gc()
@@ -355,8 +375,13 @@ EstimarGanancia_lightgbmCV  <- function( x )
     fwrite( tb_importancia,
             file= paste0( "impo_", GLOBAL_iteracion, ".txt" ),
             sep= "\t" )
-    
+
     rm( tb_importancia )
+
+    OUTPUT$BO$mejor$iteracion  <<- GLOBAL_iteracion
+    OUTPUT$BO$mejor$ganancia  <<- GLOBAL_ganancia
+    OUTPUT$BO$mejor$arboles  <<- modelocv$best_iter
+    GrabarOutput()
   }
 
 
@@ -371,6 +396,7 @@ EstimarGanancia_lightgbmCV  <- function( x )
   xx$iteracion_bayesiana  <- GLOBAL_iteracion
 
   exp_log( xx,  arch= "BO_log.txt" )
+  set.seed( PARAM$lgb_semilla, kind= "L'Ecuyer-CMRG")
 
   return( ganancia_normalizada )
 }
@@ -378,9 +404,10 @@ EstimarGanancia_lightgbmCV  <- function( x )
 #------------------------------------------------------------------------------
 #------------------------------------------------------------------------------
 #Aqui empieza el programa
-PARAM$stat$time_start  <- format(Sys.time(), "%Y%m%d %H%M%S")
+OUTPUT$PARAM  <- PARAM
+OUTPUT$time$start  <- format(Sys.time(), "%Y%m%d %H%M%S")
 
-setwd("~/buckets/b1/")
+setwd( PARAM$home )
 
 #cargo el dataset donde voy a entrenar
 #esta en la carpeta del exp_input y siempre se llama  dataset_training.csv.gz
@@ -399,6 +426,7 @@ if( dataset[ fold_train==1, .N ] == 0 ) stop("Error, en el dataset no hay regist
 dir.create( paste0( "./exp/", PARAM$experimento, "/"), showWarnings = FALSE )
 setwd(paste0( "./exp/", PARAM$experimento, "/"))   #Establezco el Working Directory DEL EXPERIMENTO
 
+GrabarOutput()
 write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
 
 cat( PARAM$exp_input,
@@ -415,11 +443,14 @@ campos_buenos  <- setdiff( copy(colnames( dataset )), c( "clase01", "clase_terna
 #la particion de train siempre va
 dtrain  <- lgb.Dataset( data=    data.matrix( dataset[ fold_train==1, campos_buenos, with=FALSE] ),
                         label=   dataset[ fold_train==1, clase01 ],
-                        weight=  dataset[ fold_train==1, ifelse( clase_ternaria == "BAJA+2", 1.0000001, 
+                        weight=  dataset[ fold_train==1, ifelse( clase_ternaria == "BAJA+2", 1.0000001,
                                                                  ifelse( clase_ternaria == "BAJA+1", 1.0, 1.0) )],
                         free_raw_data= FALSE
                       )
 
+OUTPUT$train$ncol  <- ncol(dtrain)
+OUTPUT$train$nrow  <- nrow(dtrain)
+OUTPUT$train$periodos  <- dataset[ fold_train==1, length(unique(foto_mes)) ]
 
 kvalidate  <- FALSE
 ktest  <- FALSE
@@ -432,10 +463,13 @@ if( dataset[ fold_train==0 & fold_test==0 & fold_validate==1, .N ] > 0 )
   kvalidate  <- TRUE
   dvalidate  <- lgb.Dataset( data=  data.matrix( dataset[ fold_validate==1, campos_buenos, with=FALSE] ),
                              label= dataset[ fold_validate==1, clase01 ],
-                             weight= dataset[ fold_validate==1, ifelse( clase_ternaria == "BAJA+2", 1.0000001, 
+                             weight= dataset[ fold_validate==1, ifelse( clase_ternaria == "BAJA+2", 1.0000001,
                                                                      ifelse( clase_ternaria == "BAJA+1", 1.0, 1.0) )],
                              free_raw_data= FALSE  )
 
+  OUTPUT$validate$ncol  <- ncol(dvalidate)
+  OUTPUT$validate$nrow  <- nrow(dvalidate)
+  OUTPUT$validate$periodos  <- dataset[ fold_validate==1, length(unique(foto_mes)) ]
 }
 
 
@@ -445,6 +479,10 @@ if( dataset[ fold_train==0 & fold_validate==0 & fold_test==1, .N ] > 0 )
   ktest  <- TRUE
   campos_buenos_test  <- setdiff( copy(colnames( dataset )), c( "fold_train", "fold_validate", "fold_test" ) )
   dataset_test  <- dataset[ fold_test== 1, campos_buenos_test, with=FALSE ]
+
+  OUTPUT$test$ncol  <- ncol(dataset_test)
+  OUTPUT$test$nrow  <- nrow(dataset_test)
+  OUTPUT$test$periodos  <- dataset_test[ , length(unique(foto_mes)) ]
 }
 
 
@@ -461,12 +499,16 @@ if( file.exists( "BO_log.txt" ) )
   GLOBAL_ganancia   <- tabla_log[ , max(ganancia) ]
   rm(tabla_log)
 } else  {
-  GLOBAL_iteracion  <- 0
+  GLOBAL_iteracion  <- 0L
   GLOBAL_ganancia   <- -Inf
 }
 
 
 #Aqui comienza la configuracion de mlrMBO
+
+
+OUTPUT$crossvalidation  <- kcrossvalidation
+GrabarOutput()
 
 #deobo hacer cross validation o  Train/Validate/Test
 if( kcrossvalidation ) {
@@ -489,10 +531,10 @@ obj.fun  <- makeSingleObjectiveFunction(
              )
 
 #archivo donde se graba y cada cuantos segundos
-ctrl  <- makeMBOControl( save.on.disk.at.time= 600,  
+ctrl  <- makeMBOControl( save.on.disk.at.time= 600,
                          save.file.path=       "bayesiana.RDATA" )
 
-ctrl  <- setMBOControlTermination( ctrl, 
+ctrl  <- setMBOControlTermination( ctrl,
                                    iters= PARAM$bo_iteraciones )   #cantidad de iteraciones
 
 ctrl  <- setMBOControlInfill(ctrl, crit= makeMBOInfillCritEI() )
@@ -503,9 +545,17 @@ surr.km  <- makeLearner("regr.km",
                         covtype= "matern3_2",
                         control= list(trace= TRUE) )
 
+surr.km  <- makeLearner("regr.km",
+                        predict.type= "se",
+                        covtype= "matern3_2",
+                        optim.method= "BFGS",
+                        nugget.estim= TRUE,
+                        jitter= TRUE,
+                        control= list(trace= TRUE) )
 
 
 #Aqui inicio la optimizacion bayesiana
+set.seed( PARAM$lgb_semilla, kind= "L'Ecuyer-CMRG")
 if( !file.exists( "bayesiana.RDATA" ) ) {
 
   run  <- mbo(obj.fun, learner= surr.km, control= ctrl)
@@ -517,8 +567,11 @@ if( !file.exists( "bayesiana.RDATA" ) ) {
 }
 
 #------------------------------------------------------------------------------
-PARAM$stat$time_end  <- format(Sys.time(), "%Y%m%d %H%M%S")
-write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
+BO_log  <- fread("BO_log.txt")
+OUTPUT$ganancia_max  <- BO_log[ , max( ganancia, na.rm=TRUE ) ]
+
+OUTPUT$time$end  <- format(Sys.time(), "%Y%m%d %H%M%S")
+GrabarOutput()
 
 #dejo la marca final
 cat( format(Sys.time(), "%Y%m%d %H%M%S"),"\n",
@@ -527,11 +580,11 @@ cat( format(Sys.time(), "%Y%m%d %H%M%S"),"\n",
 
 #------------------------------------------------------------------------------
 #suicidio,  elimina la maquina virtual directamente
-# para no tener que esperar a que termine una Bayesian Optimization 
+# para no tener que esperar a que termine una Bayesian Optimization
 # sino Google me sigue facturando a pesar de no estar procesando nada
 # Give them nothing, but take from them everything.
 
-system( "sleep 10  && 
+system( "sleep 10  &&
         export NAME=$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/name -H 'Metadata-Flavor: Google') &&
         export ZONE=$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google') &&
         gcloud --quiet compute instances delete $NAME --zone=$ZONE",

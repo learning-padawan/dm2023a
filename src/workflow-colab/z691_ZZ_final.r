@@ -38,13 +38,17 @@ PARAM$exp_input  <- "HT6510"
 PARAM$modelos_rank  <- c( 1 )  #Que modelos quiero, segun su posicion en el ranking e la Bayesian Optimizacion, ordenado por ganancia descendente
 PARAM$semillas  <- c( 102191, 200177, 410551, 552581, 892237 ) #reemplazar por las propias semillas
 
-PARAM$kaggle$envios_desde  <-  8000
-PARAM$kaggle$envios_hasta  <- 13500
-PARAM$kaggle$envios_salto  <-   500
+PARAM$kaggle$envios_desde  <-  8000L
+PARAM$kaggle$envios_hasta  <- 13500L
+PARAM$kaggle$envios_salto  <-   500L
 
-PARAM$graficar$envios_hasta  <- 20000  #para el caso que deba graficar
-PARAM$graficar$ventana_suavizado  <- 2001
+PARAM$graficar$envios_hasta  <- 20000L  #para el caso que deba graficar
+PARAM$graficar$ventana_suavizado  <- 2001L
+
+PARAM$home  <- "~/buckets/b1/"
 # FIN Parametros del script
+
+OUTPUT  <- list()
 
 #------------------------------------------------------------------------------
 options(error= function() {
@@ -53,9 +57,16 @@ options(error= function() {
   stop("exiting after script error")
 })
 #------------------------------------------------------------------------------
+
+GrabarOutput  <- function()
+{
+  write_yaml( OUTPUT, file= "output.yml" )   # grabo OUTPUT
+}
+#------------------------------------------------------------------------------
 #------------------------------------------------------------------------------
 #Aqui empieza el programa
-PARAM$stat$time_start  <- format(Sys.time(), "%Y%m%d %H%M%S")
+OUTPUT$PARAM  <- PARAM
+OUTPUT$time$start  <- format(Sys.time(), "%Y%m%d %H%M%S")
 
 base_dir <- "~/buckets/b1/"
 
@@ -63,6 +74,7 @@ base_dir <- "~/buckets/b1/"
 dir.create( paste0( base_dir, "exp/", PARAM$experimento, "/"), showWarnings= FALSE )
 setwd(paste0( base_dir, "exp/", PARAM$experimento, "/"))   #Establezco el Working Directory DEL EXPERIMENTO
 
+GrabarOutput()
 write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
 
 #leo la salida de la optimizaciob bayesiana
@@ -92,8 +104,15 @@ campos_buenos  <- setdiff( colnames(dataset), c( "clase_ternaria", "clase01") )
 
 
 #genero un modelo para cada uno de las modelos_qty MEJORES iteraciones de la Bayesian Optimization
+vganancias_suavizadas  <- c()
+
+imodelo  <- 0L
 for( modelo_rank in  PARAM$modelos_rank )
 {
+  imodelo  <- imodelo + 1L
+  cat( "\nmodelo_rank: ", modelo_rank, ", semillas: " )
+  OUTPUT$status$modelo_rank  <- modelo_rank
+
   parametros  <- as.list( copy( tb_log[ modelo_rank ] ) )
   iteracion_bayesiana  <- parametros$iteracion_bayesiana
 
@@ -124,10 +143,15 @@ for( modelo_rank in  PARAM$modelos_rank )
      tb_ganancias[ , gan_sum := 0.0 ]
   }
 
-  sem  <- 0
+  sem  <- 0L
+
   for( vsemilla  in PARAM$semillas )
   {
-    sem  <- sem + 1
+    sem  <- sem + 1L
+    cat( sem, " " )
+    OUTPUT$status$sem  <- sem
+    GrabarOutput()
+
     #Utilizo la semilla definida en este script
     parametros$seed  <- vsemilla
 
@@ -142,7 +166,7 @@ for( modelo_rank in  PARAM$modelos_rank )
                             ".model" )
 
     #genero el modelo entrenando en los datos finales
-    set.seed( parametros$seed )
+    set.seed( parametros$seed, kind= "L'Ecuyer-CMRG")
     modelo_final  <- lightgbm( data= dtrain,
                                param=  parametros,
                                verbose= -100 )
@@ -236,6 +260,7 @@ for( modelo_rank in  PARAM$modelos_rank )
 
     ganancia_suavizada_max  <- tb_ganancias[ , max( gan_suavizada, na.rm= TRUE ) ]
 
+    vganancias_suavizadas  <- c(vganancias_suavizadas, ganancia_suavizada_max)
 
     ymax  <- max( tb_ganancias, na.rm= TRUE )
 
@@ -300,8 +325,13 @@ for( modelo_rank in  PARAM$modelos_rank )
 }
 
 #------------------------------------------------------------------------------
-PARAM$stat$time_end  <- format(Sys.time(), "%Y%m%d %H%M%S")
-write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
+if( future_con_clase )
+{
+  OUTPUT$ganancias_suavizadas  <- vganancias_suavizadas
+}
+
+OUTPUT$time$end  <- format(Sys.time(), "%Y%m%d %H%M%S")
+GrabarOutput()
 
 #dejo la marca final
 cat( format(Sys.time(), "%Y%m%d %H%M%S"),"\n",

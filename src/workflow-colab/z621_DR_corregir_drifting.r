@@ -24,9 +24,25 @@ PARAM$variables_intrames  <- TRUE   # atencion esto esta en TRUE
 
 #valores posibles  "ninguno" "rank_simple" , "rank_cero_fijo" , "deflacion"
 PARAM$metodo  <- "rank_cero_fijo"
+
+PARAM$home  <- "~/buckets/b1/"
 # FIN Parametros del script
 
+OUTPUT  <- list()
 
+#------------------------------------------------------------------------------
+
+options(error = function() { 
+  traceback(20); 
+  options(error = NULL); 
+  stop("exiting after script error") 
+})
+#------------------------------------------------------------------------------
+
+GrabarOutput  <- function()
+{
+  write_yaml( OUTPUT, file= "output.yml" )   # grabo output
+}
 #------------------------------------------------------------------------------
 #Esta es la parte que los alumnos deben desplegar todo su ingenio
 #Agregar aqui sus PROPIAS VARIABLES manuales
@@ -194,9 +210,10 @@ drift_rank_cero_fijo  <- function( campos_drift )
 #------------------------------------------------------------------------------
 #------------------------------------------------------------------------------
 #Aqui comienza el programa
-PARAM$stat$time_start  <- format(Sys.time(), "%Y%m%d %H%M%S")
+OUTPUT$PARAM  <- PARAM
+OUTPUT$time$start  <- format(Sys.time(), "%Y%m%d %H%M%S")
 
-setwd("~/buckets/b1")
+setwd(PARAM$home)
 
 #cargo el dataset donde voy a entrenar
 #esta en la carpeta del exp_input y siempre se llama  dataset.csv.gz
@@ -207,6 +224,7 @@ dataset  <- fread( dataset_input )
 dir.create( paste0( "./exp/", PARAM$experimento, "/"), showWarnings = FALSE )
 setwd(paste0( "./exp/", PARAM$experimento, "/"))   #Establezco el Working Directory DEL EXPERIMENTO
 
+GrabarOutput()
 write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
 
 #primero agrego las variables manuales
@@ -237,8 +255,23 @@ fwrite( dataset,
         sep= "," )
 
 #------------------------------------------------------------------------------
-PARAM$stat$time_end  <- format(Sys.time(), "%Y%m%d %H%M%S")
-write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
+
+# guardo los campos que tiene el dataset
+tb_campos  <- as.data.table( list( "pos" = 1:ncol(dataset),
+                                   "campo"= names(sapply( dataset, class )),
+                                   "tipo"= sapply( dataset, class ),
+                                   "nulos"= sapply( dataset,  function(x){ sum(is.na(x)) } ),
+                                   "ceros"= sapply( dataset,  function(x){ sum(x==0,na.rm= TRUE) } ) ))
+
+fwrite( tb_campos,
+        file= "dataset.campos.txt",
+        sep= "\t" )
+
+#------------------------------------------------------------------------------
+OUTPUT$dataset$ncol  <- ncol(dataset)
+OUTPUT$dataset$nrow  <- nrow(dataset)
+OUTPUT$time$end  <- format(Sys.time(), "%Y%m%d %H%M%S")
+GrabarOutput()
 
 #dejo la marca final
 cat( format(Sys.time(), "%Y%m%d %H%M%S"),"\n",

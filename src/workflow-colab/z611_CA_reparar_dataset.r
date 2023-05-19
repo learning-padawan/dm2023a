@@ -19,8 +19,10 @@ PARAM$experimento  <- "CA6110"
 PARAM$dataset  <- "./datasets/competencia_2023.csv.gz"
 
 PARAM$metodo  <- "MachineLearning"     #valores posibles  "MachineLearning"  "EstadisticaClasica" "Ninguno"
+PARAM$home  <- "~/buckets/b1/"
 # FIN Parametros del script
 
+OUTPUT  <- list()
 
 #------------------------------------------------------------------------------
 
@@ -32,6 +34,11 @@ options(error = function() {
 
 #------------------------------------------------------------------------------
 
+GrabarOutput  <- function()
+{
+  write_yaml( OUTPUT, file= "output.yml" )   # grabo output
+}
+#------------------------------------------------------------------------------
 CorregirCampoMes  <- function( pcampo, pmeses )
 {
   tbl <- dataset[ , list( "v1" = shift( get(pcampo), 1, type="lag" ),
@@ -204,9 +211,10 @@ Corregir_MachineLearning  <- function( dataset )
 #------------------------------------------------------------------------------
 #------------------------------------------------------------------------------
 #Aqui empieza el programa
-PARAM$stat$time_start  <- format(Sys.time(), "%Y%m%d %H%M%S")
+OUTPUT$PARAM  <- PARAM
+OUTPUT$time$start  <- format(Sys.time(), "%Y%m%d %H%M%S")
 
-setwd( "~/buckets/b1/" )
+setwd( PARAM$home )
 
 #cargo el dataset
 dataset  <- fread( PARAM$dataset )
@@ -219,6 +227,7 @@ dataset[ , tmobile_app := NULL ]
 dir.create( paste0( "./exp/", PARAM$experimento, "/"), showWarnings = FALSE )
 setwd(paste0( "./exp/", PARAM$experimento, "/"))   #Establezco el Working Directory DEL EXPERIMENTO
 
+GrabarOutput()
 write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
 
 setorder( dataset, numero_de_cliente, foto_mes )
@@ -240,8 +249,23 @@ fwrite( dataset,
         sep= "," )
 
 #------------------------------------------------------------------------------
-PARAM$stat$time_end  <- format(Sys.time(), "%Y%m%d %H%M%S")
-write_yaml( PARAM, file= "parametros.yml" )   #escribo parametros utilizados
+
+# guardo los campos que tiene el dataset
+tb_campos  <- as.data.table( list( "pos" = 1:ncol(dataset),
+                                   "campo"= names(sapply( dataset, class )),
+                                   "tipo"= sapply( dataset, class ),
+                                   "nulos"= sapply( dataset,  function(x){ sum(is.na(x)) } ),
+                                   "ceros"= sapply( dataset,  function(x){ sum(x==0,na.rm= TRUE) } ) ))
+
+fwrite( tb_campos,
+        file= "dataset.campos.txt",
+        sep= "\t" )
+
+#------------------------------------------------------------------------------
+OUTPUT$dataset$ncol  <- ncol(dataset)
+OUTPUT$dataset$nrow  <- nrow(dataset)
+OUTPUT$time$end  <- format(Sys.time(), "%Y%m%d %H%M%S")
+GrabarOutput()
 
 #dejo la marca final
 cat( format(Sys.time(), "%Y%m%d %H%M%S"),"\n",
