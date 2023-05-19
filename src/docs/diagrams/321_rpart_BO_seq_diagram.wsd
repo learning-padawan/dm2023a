@@ -1,0 +1,35 @@
+@startuml
+title 321_rpart_BO Optimizacion Bayesiana
+
+group BO con algoritmo mbo
+    inicio -> mbo : run
+    mbo -> obj.fun : funcion a optimizar
+end
+
+obj.fun -> funcion_optimizar : params que le envía: <hs (hiperparametros a optimizar y sus rangos - e.g. cp, minsplit, minbucket, maxdepth)>
+funcion_optimizar -> EstimarGanancia : apunta a la función
+EstimarGanancia -> EstimarGanancia : define la cantidad de folds (5 por ej.)
+EstimarGanancia -> ArbolesCrossValidation : params que le envía: <dataset, param (los hs), cant de folds, agrupa por clase_ternaria, semilla_azar>
+ArbolesCrossValidation -> ArbolesCrossValidation : particiona el dataset en 5 folds
+
+
+loop : itera la llamada a la funcion Arbol Simple 5 veces (mcmapply), cambiando cada vez el fold_test 
+ArbolesCrossValidation -> ArbolesCrossValidation : define el fold de testing dentro del mcmapply
+ArbolesCrossValidation -> ArbolSimple : params que le envía: <fold_test, dataset, param (los hs)>
+ArbolSimple -> ArbolSimple : genera el modelo de arbol CART con rpart teniendo clase_ternaria como variable target
+ArbolSimple -> ArbolSimple : realiza la prediccion sobre el fold_test con el modelo generado
+ArbolSimple -> ArbolSimple : calcula la ganancia de la prediccion en base a los BAJA+2 predecidos
+ArbolSimple --> ArbolesCrossValidation : devuelve la ganancia en $ obtenida en el fold de testing.
+ArbolesCrossValidation -> ArbolesCrossValidation : guarda la ganancia en el vector ganancias
+end loop
+
+ArbolesCrossValidation -> ArbolesCrossValidation : promedia las ganancias obtenidas en los 5 folds
+ArbolesCrossValidation -> ArbolesCrossValidation : normaliza ganancia_promedio * cant de folds
+ArbolesCrossValidation -->> EstimarGanancia : returns ganancia_promedio_normalizada
+EstimarGanancia -> EstimarGanancia : guarda la ganancia_promedio_normalizada en ganancia
+EstimarGanancia -->>  mbo : ganancia 
+mbo -> mbo: Vuelve a llamar a la funcion optimizar?
+
+
+
+@endumlA 

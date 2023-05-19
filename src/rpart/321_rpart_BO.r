@@ -105,6 +105,16 @@ ArbolesCrossValidation  <- function( data, param, qfolds, pagrupa, semilla )
 
   particionar( data, divi, seed=semilla, agrupa=pagrupa )  #particiono en dataset en folds
 
+  # cuantas veces voy a llamar a ArbolSimple
+  # en este caso, 5 veces, una por cada fold
+  # que significa seq(qfolds)
+  # 1 2 3 4 5
+  #como utiliza mcmapply el seq(qfolds)
+  #en la primer llamada a ArbolSimple, fold_test=1
+  #en la segunda llamada a ArbolSimple, fold_test=2
+  #en la tercer llamada a ArbolSimple, fold_test=3
+  #en la cuarta llamada a ArbolSimple, fold_test=4
+  #en la quinta llamada a ArbolSimple, fold_test=5
   ganancias  <- mcmapply( ArbolSimple, 
                           seq(qfolds), # 1 2 3 4 5
                           MoreArgs= list( data, param), 
