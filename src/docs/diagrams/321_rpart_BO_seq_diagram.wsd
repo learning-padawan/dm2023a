@@ -1,4 +1,4 @@
-@startuml
+@startuml 321_rpart_BO Optimizacion Bayesiana
 title 321_rpart_BO Optimizacion Bayesiana
 
 group BO con algoritmo mbo
