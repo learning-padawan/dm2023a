@@ -22,17 +22,17 @@ require("lightgbm")
 
 #Parametros del script
 PARAM  <- list()
-PARAM$experimento <- "FE6310"
+PARAM$experimento <- "FE6310-mayo-2021-con-lags-1-2-3"
 
-PARAM$exp_input  <- "DR6210"
+PARAM$exp_input  <- "DR6210-mayo-2021-con-lags-1-2-3"
 
 PARAM$lag1  <- TRUE
 PARAM$lag2  <- TRUE
-PARAM$lag3  <- FALSE
+PARAM$lag3  <- TRUE
 
-PARAM$Tendencias1$run  <- TRUE
+PARAM$Tendencias1$run  <- FALSE
 PARAM$Tendencias1$ventana  <- 6
-PARAM$Tendencias1$tendencia  <- TRUE
+PARAM$Tendencias1$tendencia  <- FALSE
 PARAM$Tendencias1$minimo  <- FALSE
 PARAM$Tendencias1$maximo  <- FALSE
 PARAM$Tendencias1$promedio  <- FALSE
@@ -41,7 +41,7 @@ PARAM$Tendencias1$ratiomax  <- FALSE
 
 PARAM$Tendencias2$run  <- FALSE
 PARAM$Tendencias2$ventana  <- 6
-PARAM$Tendencias2$tendencia  <- TRUE
+PARAM$Tendencias2$tendencia  <- FALSE
 PARAM$Tendencias2$minimo  <- FALSE
 PARAM$Tendencias2$maximo  <- FALSE
 PARAM$Tendencias2$promedio  <- FALSE
@@ -49,7 +49,7 @@ PARAM$Tendencias2$ratioavg  <- FALSE
 PARAM$Tendencias2$ratiomax  <- FALSE
 
 
-PARAM$RandomForest$run  <- TRUE
+PARAM$RandomForest$run  <- FALSE
 PARAM$RandomForest$num.trees  <- 20
 PARAM$RandomForest$max.depth  <-  4
 PARAM$RandomForest$min.node.size  <- 1000
