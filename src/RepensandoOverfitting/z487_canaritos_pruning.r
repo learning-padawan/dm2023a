@@ -6,7 +6,7 @@ require("data.table")
 require("rpart")
 require("rpart.plot")
 
-setwd("X:\\gdrive\\austral2023v\\" )  #establezco la carpeta donde voy a trabajar
+setwd("/Users/pablonavarro/Documents/ITBA/mcd/materias/2023.1.cuatrimestre/mcd_data_mining/mcd_dm/mcd_dm_trabajos") # Establezco el Working Directory
 
 #cargo el dataset
 dataset  <- fread( "./datasets/dataset_pequeno.csv")
@@ -20,6 +20,7 @@ setwd( "./exp/EA4870" )
 set.seed(102191)
 
 # agrego tantos canaritos como variables tiene el dataset
+# que hace el runif?  genera un numero aleatorio entre 0 y 1
 for( i in 1:ncol(dataset) )  dataset[ , paste0("canarito", i ) :=  runif( nrow(dataset)) ]
 
 dtrain  <- dataset[ foto_mes==202107 ]
